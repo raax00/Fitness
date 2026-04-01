@@ -1,60 +1,44 @@
-name: Build & Release Desi Fitness APK
+name: Build Flutter APK
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch: # Isse aap manually bhi build start kar sakte hain
+  workflow_dispatch: # Manual build trigger
 
 jobs:
   build:
-    name: Build Flutter APK
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Code ko GitHub runner pe lana
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Java setup karna (Android build ke liye zaroori hai)
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-          cache: 'gradle'
+          # Yahan se cache: gradle hata diya gaya hai taaki error na aaye
 
-      # 3. Flutter setup karna
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true # Isse build fast hogi
 
-      # 4. Dependencies download karna
+      # Yeh step sabse zaroori hai: Agar Android folder nahi hai, toh yeh khud bana dega
+      - name: Create/Fix Flutter Project Files
+        run: flutter create .
+
       - name: Install Dependencies
         run: flutter pub get
 
-      # 5. Clean build (Taki purani koi error na aaye)
-      - name: Clean Project
-        run: flutter clean
+      - name: Build APK (Release Mode)
+        run: flutter build apk --release
 
-      # 6. APK Build karna (Release Mode)
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
-
-      # 7. APK ko Artifacts mein save karna (Download ke liye)
-      - name: Upload Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DesiFitness-APK
+          name: DesiFitness-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      # 8. (Extra Pro Step) Automatic GitHub Release banana
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/') # Agar aap tag push karein toh automatic release ban jayega
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
