@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +6,9 @@ void main() {
   runApp(const FitnessApp());
 }
 
+// ==========================================
+// STEP 1: MAIN APP & THEME SETUP
+// ==========================================
 class FitnessApp extends StatelessWidget {
   const FitnessApp({super.key});
 
@@ -15,13 +19,18 @@ class FitnessApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black, // iOS Deep Black
+        scaffoldBackgroundColor: const Color(0xFF000000), // Pure iOS Black
         primaryColor: const Color(0xFFFF9F0A), // iOS Accent Orange
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFFFF9F0A),
-          surface: Color(0xFF1C1C1E),
+          surface: Color(0xFF1C1C1E), // iOS Dark Gray for Cards
         ),
-        fontFamily: 'San Francisco', // Standard iOS font feel
+        fontFamily: '.SF Pro Display', // Native iOS Font look
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -1.0),
+          titleLarge: TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.5),
+          bodyMedium: TextStyle(height: 1.5, letterSpacing: 0.2), // Better Likhawat
+        ),
       ),
       home: const MainDashboard(),
     );
@@ -29,98 +38,88 @@ class FitnessApp extends StatelessWidget {
 }
 
 // ==========================================
-// 1. BOTTOM NAVIGATION & DASHBOARD (MENU)
+// STEP 2: iOS BOTTOM NAVIGATION (DASHBOARD)
 // ==========================================
-class MainDashboard extends StatefulWidget {
+class MainDashboard extends StatelessWidget {
   const MainDashboard({super.key});
 
   @override
-  State<MainDashboard> createState() => _MainDashboardState();
-}
-
-class _MainDashboardState extends State<MainDashboard> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = [
-    const HomeTab(),
-    const PlansTab(), // New Screen from your screenshot
-    const Center(child: Text("Diet Plans", style: TextStyle(fontSize: 24, color: Colors.white))),
-    const Center(child: Text("Profile", style: TextStyle(fontSize: 24, color: Colors.white))),
-  ];
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: Theme(
-        data: ThemeData(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: const Color(0xFF111111),
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _currentIndex,
-          selectedItemColor: const Color(0xFFFF9F0A),
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.square_grid_2x2), label: "Plans"),
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.leaf_arrow_circlepath), label: "Diet"),
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.person), label: "Profile"),
-          ],
-        ),
+    // CupertinoTabScaffold gives the native iOS blur bottom bar and keeps state
+    return CupertinoTabScaffold(
+      backgroundColor: Colors.black,
+      tabBar: CupertinoTabBar(
+        backgroundColor: const Color(0xFF1C1C1E).withOpacity(0.8), // Frosted glass effect
+        activeColor: const Color(0xFFFF9F0A),
+        inactiveColor: CupertinoColors.systemGrey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.square_grid_2x2), label: "Plans"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.leaf_arrow_circlepath), label: "Diet"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.person), label: "Profile"),
+        ],
       ),
+      tabBuilder: (context, index) {
+        switch (index) {
+          case 0:
+            return const HomeTab();
+          case 1:
+            return const PlansTab();
+          case 2:
+            return const Center(child: Text("Diet Plans", style: TextStyle(color: Colors.white, fontSize: 24)));
+          case 3:
+            return const Center(child: Text("Profile", style: TextStyle(color: Colors.white, fontSize: 24)));
+          default:
+            return const HomeTab();
+        }
+      },
     );
   }
 }
 
 // ==========================================
-// 2. HOME TAB (Original Enhanced)
+// STEP 3: HOME TAB (RESPONSIVE & MODERN)
 // ==========================================
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(), // iOS bounce effect
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 10, bottom: 20),
-              child: Text(
-                "Fitness",
-                style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          // iOS Large Expanding App Bar
+          const CupertinoSliverNavigationBar(
+            largeTitle: Text("Fitness", style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.black,
+            border: null,
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  SectionTitle(title: "Today's Workout"),
+                  WorkoutChallengeCard(),
+                  SizedBox(height: 32),
+                  SectionTitle(title: "Budget Diet Plan"),
+                  DietPlanCard(),
+                  SizedBox(height: 100), // Padding for bottom nav
+                ],
               ),
             ),
-            const SectionTitle(title: "Today's Workout"),
-            const WorkoutChallengeCard(),
-            const SizedBox(height: 24),
-            const SectionTitle(title: "Budget Diet Plan"),
-            const DietPlanCard(),
-            const SizedBox(height: 30),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 // ==========================================
-// 3. PLANS TAB (From Screenshot 2)
+// STEP 4: PLANS TAB (RESPONSIVE GRID)
 // ==========================================
 class PlansTab extends StatelessWidget {
   const PlansTab({super.key});
@@ -135,7 +134,7 @@ class PlansTab extends StatelessWidget {
       "image": "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=400&auto=format&fit=crop"
     },
     {
-      "title": "BODYBUILDER",
+      "title": "AESTHETICS",
       "duration": "5 months",
       "tag": "",
       "isPremium": true,
@@ -162,48 +161,47 @@ class PlansTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(height: 20),
-          const Text(
-            "Dozens Of WORKOUT PLANS",
-            style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+    // Get screen width to make grid responsive
+    double screenWidth = MediaQuery.of(context).size.width;
+    int crossAxisCount = screenWidth > 600 ? 4 : 2; // 4 columns on tablet, 2 on phone
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          const CupertinoSliverNavigationBar(
+            largeTitle: Text("Workout Plans", style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.black,
+            border: null,
           ),
-          const Text(
-            "For Your Goal",
-            style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: GridView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
-                childAspectRatio: 0.75, // Tall cards
+                childAspectRatio: 0.75, // Better proportion for cards
               ),
-              itemCount: plans.length,
-              itemBuilder: (context, index) {
-                final plan = plans[index];
-                return GestureDetector(
-                  onTap: () {
-                    // Navigate to details screen with iOS animation
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: (context) => PlanDetailScreen(planData: plan),
-                      ),
-                    );
-                  },
-                  child: GridPlanCard(plan: plan),
-                );
-              },
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final plan = plans[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(builder: (context) => PlanDetailScreen(planData: plan)),
+                      );
+                    },
+                    child: GridPlanCard(plan: plan),
+                  );
+                },
+                childCount: plans.length,
+              ),
             ),
           ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
@@ -218,66 +216,89 @@ class GridPlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20), // Premium rounded corners
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 5))
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.network(
-              plan["image"],
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800]),
+          // Background Image with dark gradient overlay for text readability
+          Image.network(
+            plan["image"],
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[800]),
+          ),
+          // Gradient for smooth blending
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                stops: const [0.5, 1.0],
+              ),
             ),
           ),
           
-          // Lock Icon for Premium
+          // Premium Lock Icon
           if (plan["isPremium"])
             Positioned(
-              top: 10,
-              left: 10,
-              child: CircleAvatar(
-                backgroundColor: Colors.black.withOpacity(0.6),
-                radius: 14,
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
                 child: const Icon(CupertinoIcons.lock_fill, color: Colors.white, size: 14),
               ),
             ),
 
-          // Bottom Banner overlay
+          // Bottom Info Area (Glassmorphism look)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(color: plan["tagColor"]),
-              child: Column(
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: "${plan['duration']} ",
-                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+            child: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // iOS Blur
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: plan["tagColor"].withOpacity(0.9), // Transparent color
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "${plan['duration']} ${plan['tag']}",
+                        style: TextStyle(
+                          color: plan['tag'] == '(free)' ? Colors.red : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
-                        if (plan['tag'].isNotEmpty)
-                          TextSpan(
-                            text: plan['tag'],
-                            style: TextStyle(color: plan['tag'] == '(free)' ? Colors.red : Colors.black, fontSize: 12),
-                          ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        plan['title'],
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  Text(
-                    plan['title'],
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -288,7 +309,7 @@ class GridPlanCard extends StatelessWidget {
 }
 
 // ==========================================
-// 4. PLAN DETAIL SCREEN (From Screenshot 3)
+// STEP 5: PLAN DETAILS (MODERN UI WITH SLIVER)
 // ==========================================
 class PlanDetailScreen extends StatelessWidget {
   final Map<String, dynamic> planData;
@@ -297,152 +318,150 @@ class PlanDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text("Fat Loss WORKOUT PLAN", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
+      backgroundColor: Colors.white, // As per your screenshot requirement
+      body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
-        child: Column(
-          children: [
-            const SizedBox(height: 10),
-            // The White Card Design exactly like Screenshot
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Column(
+        slivers: [
+          // iOS Style Parallax Header
+          SliverAppBar(
+            expandedHeight: 350.0,
+            stretch: true,
+            backgroundColor: Colors.black,
+            leading: IconButton(
+              icon: const Icon(CupertinoIcons.back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground],
+              background: Stack(
+                fit: StackFit.expand,
                 children: [
-                  // Hero Image Area with overlapping Before/After
-                  SizedBox(
-                    height: 250,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Main Body Image
-                        ClipRRect(
-                          borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
-                          child: Image.network(
-                            planData['image'],
-                            width: double.infinity,
-                            height: 220,
-                            fit: BoxFit.cover,
-                            alignment: Alignment.topCenter,
-                          ),
-                        ),
-                        // Title Banner overlapping image
-                        Positioned(
-                          bottom: 30,
-                          left: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFCC00),
-                              borderRadius: BorderRadius.only(topRight: Radius.circular(20), bottomRight: Radius.circular(20)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(planData['duration'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text(planData['title'], style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 18)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // 'Before' Circle
-                        Positioned(
-                          bottom: -20,
-                          right: 10,
-                          child: CircularBadge(imageLabel: "Before"),
-                        ),
-                        // 'After' Circle
-                        Positioned(
-                          bottom: -40,
-                          left: 20,
-                          child: CircularBadge(imageLabel: "After", isYellow: true),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Description & Details
-                  Padding(
-                    padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
-                    child: Column(
-                      children: [
-                        const Text(
-                          "About: Want to see complete change in your body? Use this program to tone down the extra fat by working out for 4 days a week. By following this program you can lose atleast 20 pounds of fat and even gain lean muscle mass.",
-                          style: TextStyle(color: Colors.black54, fontSize: 14, height: 1.4),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 20),
-                        _buildDetailRow("Duration:", "3 months"),
-                        _buildDetailRow("Goal:", "Lose fat"),
-                        _buildDetailRow("Requirements:", "Beginners"),
-                        _buildDetailRow("Target Group:", "Men and women"),
-                        const SizedBox(height: 30),
-                        
-                        // Action Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2C2C2E), // Dark Grey
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: const Text("Get this plan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {},
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2C2C2E),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: const Text("Get Premium", style: TextStyle(color: Color(0xFFFF9F0A), fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          ],
-                        )
-                      ],
+                  Image.network(planData['image'], fit: BoxFit.cover),
+                  // Gradient overlay to make back button visible
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                        stops: const [0.0, 0.3],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 40),
-          ],
-        ),
+          ),
+          
+          // Details Content Area
+          SliverToBoxAdapter(
+            child: Container(
+              transform: Matrix4.translationValues(0, -30, 0), // Pulls content up over image
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                child: Column(
+                  children: [
+                    // Title Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFCC00),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(planData['duration'].toUpperCase(), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(planData['title'], style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 22, letterSpacing: 0.5)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Before / After Badges (Responsive Row)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        CircularBadge(imageLabel: "Before", isYellow: false),
+                        CircularBadge(imageLabel: "After", isYellow: true),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Description
+                    const Text(
+                      "About: Want to see a complete change in your body? Use this program to tone down the extra fat by working out for 4 days a week. By following this program you can lose at least 20 pounds of fat and gain lean muscle mass.",
+                      style: TextStyle(color: Colors.black87, fontSize: 15, height: 1.6, fontWeight: FontWeight.w400),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Specs Details
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF2F2F7), // iOS Light Gray
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildDetailRow("Duration:", "3 months"),
+                          const Divider(color: Colors.black12, height: 24),
+                          _buildDetailRow("Goal:", "Lose fat"),
+                          const Divider(color: Colors.black12, height: 24),
+                          _buildDetailRow("Requirements:", "Beginners"),
+                          const Divider(color: Colors.black12, height: 24),
+                          _buildDetailRow("Target Group:", "Men and women"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    
+                    // Buttons Responsive Row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CupertinoButton(
+                            color: const Color(0xFF1C1C1E),
+                            borderRadius: BorderRadius.circular(16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            onPressed: () {},
+                            child: const Text("Get Plan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: CupertinoButton(
+                            color: const Color(0xFF1C1C1E),
+                            borderRadius: BorderRadius.circular(16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            onPressed: () {},
+                            child: const Text("Premium", style: TextStyle(color: Color(0xFFFF9F0A), fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDetailRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(width: 6),
-          Text(value, style: const TextStyle(color: Colors.black54, fontSize: 14)),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600, fontSize: 15)),
+        Text(value, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 15)),
+      ],
     );
   }
 }
@@ -459,26 +478,34 @@ class CircularBadge extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 80,
-          height: 80,
+          width: 90,
+          height: 90,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            color: Colors.grey[300],
+            border: Border.all(color: const Color(0xFFF2F2F7), width: 4), // Smooth border
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
             image: const DecorationImage(
-              image: NetworkImage("https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=200&auto=format&fit=crop"), // Placeholder abs image
+              image: NetworkImage("https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=200&auto=format&fit=crop"),
               fit: BoxFit.cover,
             ),
           ),
         ),
+        const SizedBox(height: 12),
         Container(
-          transform: Matrix4.translationValues(0, -15, 0), // Pull badge up slightly
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
-            color: isYellow ? const Color(0xFFFFCC00) : const Color(0xFFFFCC00).withOpacity(0.8),
+            color: isYellow ? const Color(0xFFFFCC00) : const Color(0xFFE5E5EA), // Standard iOS Gray
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(imageLabel, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+          child: Text(
+            imageLabel, 
+            style: TextStyle(
+              color: Colors.black, 
+              fontWeight: FontWeight.bold, 
+              fontSize: 13,
+              letterSpacing: 0.5
+            )
+          ),
         ),
       ],
     );
@@ -486,7 +513,7 @@ class CircularBadge extends StatelessWidget {
 }
 
 // ==========================================
-// Reusable UI Components for Home Tab
+// REUSABLE UI COMPONENTS (HOME TAB)
 // ==========================================
 class SectionTitle extends StatelessWidget {
   final String title;
@@ -495,10 +522,10 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16, top: 10),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5),
       ),
     );
   }
@@ -513,8 +540,9 @@ class WorkoutChallengeCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(24), // iOS Smooth Corners
+        color: const Color(0xFF1C1C1E), // iOS Card Color
+        borderRadius: BorderRadius.circular(24), // Modern Radius
+        border: Border.all(color: Colors.white.withOpacity(0.05)), // Subtle edge
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,13 +550,23 @@ class WorkoutChallengeCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Day 1 of 30", style: TextStyle(color: Color(0xFFFF9F0A), fontWeight: FontWeight.bold, fontSize: 16)),
-              Text("🔥 45 Mins", style: TextStyle(color: Colors.white.withOpacity(0.6))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: const Color(0xFFFF9F0A).withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: const Text("Day 1 of 30", style: TextStyle(color: Color(0xFFFF9F0A), fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.flame_fill, color: Colors.orange, size: 16),
+                  const SizedBox(width: 4),
+                  Text("45 Mins", style: TextStyle(color: Colors.white.withOpacity(0.6), fontWeight: FontWeight.w600)),
+                ],
+              ),
             ],
           ),
+          const SizedBox(height: 20),
+          const Text("Chest & Triceps Build", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5)),
           const SizedBox(height: 16),
-          const Text("Chest & Triceps Build", style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
-          const SizedBox(height: 12),
           Text(
             "• 3x15 Normal Push-ups\n• 3x10 Incline Push-ups\n• 3x12 Chair Dips",
             style: TextStyle(fontSize: 16, height: 1.6, color: Colors.white.withOpacity(0.7)),
@@ -536,14 +574,11 @@ class WorkoutChallengeCard extends StatelessWidget {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            height: 55,
-            child: ElevatedButton(
+            child: CupertinoButton(
+              color: const Color(0xFFFF9F0A),
+              borderRadius: BorderRadius.circular(16),
               onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF9F0A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text("Start Workout", style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+              child: const Text("Start Workout", style: TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -563,11 +598,18 @@ class DietPlanCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("₹25/Day Protein Plan", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+          Row(
+            children: const [
+              Icon(CupertinoIcons.money_dollar_circle_fill, color: Colors.greenAccent, size: 28),
+              SizedBox(width: 10),
+              Text("₹25/Day Protein Plan", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+            ],
+          ),
           const SizedBox(height: 16),
           Text(
             "🍳 Morning:\n125g Sprouted Chana (20g Protein)\n\n🍛 Lunch/Dinner:\n60g Soya Chunks (30g Protein)",
