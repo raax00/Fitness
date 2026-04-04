@@ -20,16 +20,42 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
-          # Yahan se cache: gradle hata diya gaya hai taaki error na aaye
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      # Yeh step sabse zaroori hai: Agar Android folder nahi hai, toh yeh khud bana dega
+      # Yeh step zaroori hai: Agar Android folder nahi hai, toh yeh khud bana dega
       - name: Create/Fix Flutter Project Files
         run: flutter create .
+
+      # ==========================================
+      # 🔥 AUTO INJECTION STEPS START HERE 🔥
+      # ==========================================
+
+      - name: Auto-Inject Firebase Gradle Config & Permissions
+        run: |
+          # 1. AndroidManifest.xml mein Internet Permission inject karna
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml || true
+          
+          # 2. Project build.gradle mein Google Services classpath inject karna
+          sed -i "s/dependencies {/dependencies {\n        classpath 'com.google.gms:google-services:4.4.1'/g" android/build.gradle || true
+          
+          # 3. App build.gradle ke end mein Google Services plugin inject karna
+          echo "" >> android/app/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+
+      - name: Auto-Inject google-services.json from GitHub Secrets
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          # Secret ko padh kar original file ki jagah par create karna
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      # ==========================================
+      # 🔥 AUTO INJECTION STEPS END HERE 🔥
+      # ==========================================
 
       - name: Install Dependencies
         run: flutter pub get
@@ -40,5 +66,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DesiFitness-Release-APK
+          name: DeenConnect-Release-APK
           path: build/app/outputs/flutter-apk/app-release.apk
