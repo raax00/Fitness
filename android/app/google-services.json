@@ -1,1 +1,30 @@
-h
+{
+  "project_info": {
+    "project_number": "57317479451",
+    "firebase_url": "https://raax-3f71a-default-rtdb.firebaseio.com",
+    "project_id": "raax-3f71a",
+    "storage_bucket": "raax-3f71a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:57317479451:android:ac4a807e791711c8aed4be",
+        "android_client_info": {
+          "package_name": "com.soo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBC9XDg_EtjjF7rQ55toFgFuEgHgnRB_Kc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
