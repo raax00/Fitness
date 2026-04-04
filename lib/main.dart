@@ -1,24 +1,35 @@
 import 'dart:async';
+import 'dart:developer'; // Error logging ke liye
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// App start hone se pehle check karenge ki Firebase chala ya nahi
+bool isFirebaseInitialized = false;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    // Firebase initialize karne ki koshish
     await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase Initialization Error: $e");
+    isFirebaseInitialized = true;
+    log("SUCCESS: Firebase Initialize ho gaya hai.");
+  } catch (e, stackTrace) {
+    // Agar Firebase fail hua toh console me red text me error aayega
+    log("CRITICAL ERROR: Firebase Initialization Fail ho gaya!", error: e, stackTrace: stackTrace);
+    isFirebaseInitialized = false;
   }
-  runApp(const IslamicCommunityApp());
+  
+  runApp(IslamicCommunityApp(isFirebaseInitialized: isFirebaseInitialized));
 }
 
 // ==========================================
 // 1. MAIN APP THEME (Premium Dark iOS)
 // ==========================================
 class IslamicCommunityApp extends StatelessWidget {
-  const IslamicCommunityApp({super.key});
+  final bool isFirebaseInitialized;
+  const IslamicCommunityApp({super.key, required this.isFirebaseInitialized});
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +46,47 @@ class IslamicCommunityApp extends StatelessWidget {
         ),
         fontFamily: '.SF Pro Display',
       ),
-      home: const AuthGate(),
+      // Agar Firebase connect nahi hua toh direct Error Screen dikhao
+      home: isFirebaseInitialized ? const AuthGate() : const FirebaseErrorScreen(),
     );
   }
 }
 
 // ==========================================
-// 2. AUTH GATE
+// 2. FIREBASE ERROR SCREEN (Grey screen se bachane ke liye)
+// ==========================================
+class FirebaseErrorScreen extends StatelessWidget {
+  const FirebaseErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(30.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.redAccent, size: 80),
+              SizedBox(height: 20),
+              Text("Firebase Setup Missing!", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              SizedBox(height: 15),
+              Text(
+                "App Firebase se connect nahi ho paya.\n\nKripya check karein ki aapne 'google-services.json' file ko 'android/app' folder mein add kiya hai. Terminal logs check karein.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 16, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 3. AUTH GATE (Login check karta hai)
 // ==========================================
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -51,9 +96,12 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          log("Auth Stream Error", error: snapshot.error);
+          return Scaffold(body: Center(child: Text("Auth Error: ${snapshot.error}", style: const TextStyle(color: Colors.red))));
+        }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CupertinoActivityIndicator(radius: 20)));
+          return const Scaffold(body: Center(child: CupertinoActivityIndicator(radius: 20, color: Color(0xFFD4AF37))));
         }
         if (snapshot.hasData) {
           return const MainDashboard();
@@ -65,7 +113,7 @@ class AuthGate extends StatelessWidget {
 }
 
 // ==========================================
-// 3. LOGIN & REGISTER SCREENS (iOS UI)
+// 4. LOGIN & REGISTER SCREENS
 // ==========================================
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -81,12 +129,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> login() async {
     setState(() => _isLoading = true);
     try {
+      log("Login attempt for email: ${_emailController.text.trim()}");
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      log("Login Successful!");
     } on FirebaseAuthException catch (e) {
-      _showErrorDialog(e.message ?? "Login Failed");
+      log("FirebaseAuth Error during Login: ${e.code}", error: e.message);
+      _showErrorDialog(e.message ?? "Login Failed. Check email/password.");
+    } catch (e, stack) {
+      log("Unknown Error during Login", error: e, stackTrace: stack);
+      _showErrorDialog("An unexpected error occurred.");
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -95,12 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
     showCupertinoDialog(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
-        title: const Text("Error"),
+        title: const Text("Notice"),
         content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-              child: const Text("OK"), onPressed: () => Navigator.pop(ctx))
-        ],
+        actions: [CupertinoDialogAction(child: const Text("OK", style: TextStyle(color: Color(0xFFD4AF37))), onPressed: () => Navigator.pop(ctx))],
       ),
     );
   }
@@ -115,18 +166,10 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 50),
-              const Center(
-                child: Icon(CupertinoIcons.book_circle_fill,
-                    color: Color(0xFFD4AF37), size: 80),
-              ),
+              const Center(child: Icon(CupertinoIcons.book_circle_fill, color: Color(0xFFD4AF37), size: 80)),
               const SizedBox(height: 30),
-              const Text("Bismillah,",
-                  style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
-              const Text("Sign in to read daily Ayahs and Farman.",
-                  style: TextStyle(color: Colors.grey, fontSize: 16)),
+              const Text("Bismillah,", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white)),
+              const Text("Sign in to read daily Ayahs and Farman.", style: TextStyle(color: Colors.grey, fontSize: 16)),
               const SizedBox(height: 50),
               CupertinoTextField(
                 controller: _emailController,
@@ -134,13 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 placeholder: "Email Address",
                 placeholderStyle: const TextStyle(color: Colors.white30),
                 style: const TextStyle(color: Colors.white),
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
-                    borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(16)),
                 keyboardType: TextInputType.emailAddress,
-                prefix: const Padding(
-                    padding: EdgeInsets.only(left: 15),
-                    child: Icon(CupertinoIcons.mail, color: Colors.grey)),
+                prefix: const Padding(padding: EdgeInsets.only(left: 15), child: Icon(CupertinoIcons.mail, color: Colors.grey)),
               ),
               const SizedBox(height: 20),
               CupertinoTextField(
@@ -150,12 +189,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: true,
                 placeholderStyle: const TextStyle(color: Colors.white30),
                 style: const TextStyle(color: Colors.white),
-                decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
-                    borderRadius: BorderRadius.circular(16)),
-                prefix: const Padding(
-                    padding: EdgeInsets.only(left: 15),
-                    child: Icon(CupertinoIcons.lock, color: Colors.grey)),
+                decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(16)),
+                prefix: const Padding(padding: EdgeInsets.only(left: 15), child: Icon(CupertinoIcons.lock, color: Colors.grey)),
               ),
               const SizedBox(height: 40),
               SizedBox(
@@ -167,22 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _isLoading ? null : login,
                   child: _isLoading
                       ? const CupertinoActivityIndicator(color: Colors.black)
-                      : const Text("Sign In",
-                          style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold)),
+                      : const Text("Sign In", style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 20),
               Center(
                 child: CupertinoButton(
-                  child: const Text("Create a New Account",
-                      style: TextStyle(color: Color(0xFFD4AF37))),
-                  onPressed: () => Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                          builder: (context) => const RegisterScreen())),
+                  child: const Text("Create a New Account", style: TextStyle(color: Color(0xFFD4AF37))),
+                  onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (context) => const RegisterScreen())),
                 ),
               )
             ],
@@ -207,13 +234,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> register() async {
     setState(() => _isLoading = true);
     try {
+      log("Register attempt for email: ${_emailController.text.trim()}");
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      log("Registration Successful!");
       if (mounted) Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
+      log("FirebaseAuth Error during Register: ${e.code}", error: e.message);
       _showErrorDialog(e.message ?? "Registration Failed");
+    } catch (e, stack) {
+      log("Unknown Error during Register", error: e, stackTrace: stack);
+      _showErrorDialog("An unexpected error occurred.");
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -222,12 +255,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     showCupertinoDialog(
       context: context,
       builder: (ctx) => CupertinoAlertDialog(
-        title: const Text("Error"),
+        title: const Text("Notice"),
         content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-              child: const Text("OK"), onPressed: () => Navigator.pop(ctx))
-        ],
+        actions: [CupertinoDialogAction(child: const Text("OK", style: TextStyle(color: Color(0xFFD4AF37))), onPressed: () => Navigator.pop(ctx))],
       ),
     );
   }
@@ -235,29 +265,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CupertinoNavigationBar(
-          backgroundColor: Colors.black, border: null),
+      appBar: const CupertinoNavigationBar(backgroundColor: Colors.black, border: null),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Join Community",
-                style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
-            const Text("Connect with the Deen.",
-                style: TextStyle(color: Colors.grey, fontSize: 16)),
+            const Text("Join Community", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text("Connect with the Deen.", style: TextStyle(color: Colors.grey, fontSize: 16)),
             const SizedBox(height: 40),
             CupertinoTextField(
               controller: _emailController,
               padding: const EdgeInsets.all(18),
               placeholder: "Email Address",
               style: const TextStyle(color: Colors.white),
-              decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(16)),
             ),
             const SizedBox(height: 20),
             CupertinoTextField(
@@ -266,9 +288,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               placeholder: "Password (Min 6 chars)",
               obscureText: true,
               style: const TextStyle(color: Colors.white),
-              decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(16)),
             ),
             const SizedBox(height: 40),
             SizedBox(
@@ -279,10 +299,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 borderRadius: BorderRadius.circular(16),
                 onPressed: _isLoading ? null : register,
                 child: _isLoading
-                    ? const CupertinoActivityIndicator()
-                    : const Text("Sign Up",
-                        style: TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.bold)),
+                    ? const CupertinoActivityIndicator(color: Colors.black)
+                    : const Text("Sign Up", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -293,7 +311,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 }
 
 // ==========================================
-// 4. MAIN DASHBOARD (BOTTOM NAV)
+// 5. MAIN DASHBOARD (BOTTOM NAV)
 // ==========================================
 class MainDashboard extends StatelessWidget {
   const MainDashboard({super.key});
@@ -327,7 +345,7 @@ class MainDashboard extends StatelessWidget {
 }
 
 // ==========================================
-// 5. HOME TAB (Daily Ayah & Highlight)
+// 6. HOME TAB
 // ==========================================
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -353,45 +371,29 @@ class HomeTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 30),
-
-          // Daily Ayah Card
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2C2C2E), Color(0xFF1C1C1E)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: const LinearGradient(colors: [Color(0xFF2C2C2E), Color(0xFF1C1C1E)], begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text("Ayah of the Day", style: TextStyle(color: Color(0xFFD4AF37), fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
-                const SizedBox(height: 20),
-                const Text(
-                  "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 26, color: Colors.white, height: 1.5, fontFamily: 'Amiri'), // Best if you add an Arabic font in pubspec
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  "\"So remember Me; I will remember you. And be grateful to Me and do not deny Me.\"",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4, fontStyle: FontStyle.italic),
-                ),
-                const SizedBox(height: 15),
-                const Text("— Surah Al-Baqarah [2:152]", style: TextStyle(color: Colors.grey, fontSize: 14)),
+              children: const [
+                Text("Ayah of the Day", style: TextStyle(color: Color(0xFFD4AF37), fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.2)),
+                SizedBox(height: 20),
+                Text("فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ", textAlign: TextAlign.center, style: TextStyle(fontSize: 26, color: Colors.white, height: 1.5)),
+                SizedBox(height: 15),
+                Text("\"So remember Me; I will remember you. And be grateful to Me and do not deny Me.\"", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.4, fontStyle: FontStyle.italic)),
+                SizedBox(height: 15),
+                Text("— Surah Al-Baqarah [2:152]", style: TextStyle(color: Colors.grey, fontSize: 14)),
               ],
             ),
           ),
           const SizedBox(height: 30),
-          
           const Text("Explore", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 15),
-          
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
@@ -408,7 +410,7 @@ class HomeTab extends StatelessWidget {
 }
 
 // ==========================================
-// 6. FEED TAB (Allah Ka Farman / Community Quotes)
+// 7. FEED TAB (Community)
 // ==========================================
 class FeedTab extends StatelessWidget {
   const FeedTab({super.key});
@@ -416,21 +418,9 @@ class FeedTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<Map<String, String>> posts = [
-      {
-        "author": "Allah's Farman",
-        "text": "And whoever puts their trust in Allah, then He alone is sufficient for them.",
-        "reference": "Surah At-Talaq [65:3]"
-      },
-      {
-        "author": "Prophetic Guidance",
-        "text": "The best among you are those who have the best manners and character.",
-        "reference": "Sahih al-Bukhari"
-      },
-      {
-        "author": "Allah's Farman",
-        "text": "Do not lose hope, nor be sad.",
-        "reference": "Surah Ali 'Imran [3:139]"
-      }
+      {"author": "Allah's Farman", "text": "And whoever puts their trust in Allah, then He alone is sufficient for them.", "reference": "Surah At-Talaq [65:3]"},
+      {"author": "Prophetic Guidance", "text": "The best among you are those who have the best manners and character.", "reference": "Sahih al-Bukhari"},
+      {"author": "Allah's Farman", "text": "Do not lose hope, nor be sad.", "reference": "Surah Ali 'Imran [3:139]"}
     ];
 
     return SafeArea(
@@ -438,12 +428,7 @@ class FeedTab extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         itemCount: posts.length + 1,
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return const Padding(
-              padding: EdgeInsets.only(bottom: 20),
-              child: Text("Community & Quotes", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white)),
-            );
-          }
+          if (index == 0) return const Padding(padding: EdgeInsets.only(bottom: 20), child: Text("Community & Quotes", style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white)));
           final post = posts[index - 1];
           return Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -454,11 +439,7 @@ class FeedTab extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFFD4AF37),
-                      radius: 16,
-                      child: Icon(CupertinoIcons.quote_bubble_fill, color: Colors.black, size: 16),
-                    ),
+                    const CircleAvatar(backgroundColor: Color(0xFFD4AF37), radius: 16, child: Icon(CupertinoIcons.quote_bubble_fill, color: Colors.black, size: 16)),
                     const SizedBox(width: 12),
                     Text(post["author"]!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
@@ -483,7 +464,7 @@ class FeedTab extends StatelessWidget {
 }
 
 // ==========================================
-// 7. SAVED TAB (Bookmarks)
+// 8. SAVED TAB & PROFILE TAB
 // ==========================================
 class SavedTab extends StatelessWidget {
   const SavedTab({super.key});
@@ -506,9 +487,6 @@ class SavedTab extends StatelessWidget {
   }
 }
 
-// ==========================================
-// 8. PROFILE TAB 
-// ==========================================
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
@@ -521,23 +499,15 @@ class ProfileTab extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: Color(0xFF2C2C2E),
-              child: Icon(CupertinoIcons.person_solid, size: 50, color: Color(0xFFD4AF37)),
-            ),
+            const CircleAvatar(radius: 50, backgroundColor: Color(0xFF2C2C2E), child: Icon(CupertinoIcons.person_solid, size: 50, color: Color(0xFFD4AF37))),
             const SizedBox(height: 15),
             Text(user?.email ?? "User Email", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const Text("Community Member", style: TextStyle(color: Color(0xFFD4AF37), fontSize: 14)),
             const SizedBox(height: 40),
-
             Container(
               decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(20)),
               child: Column(
                 children: [
                   _buildProfileOption(CupertinoIcons.bell_fill, "Notification Settings"),
-                  const Divider(color: Colors.white10, height: 1),
-                  _buildProfileOption(CupertinoIcons.bookmark_fill, "My Bookmarks"),
                   const Divider(color: Colors.white10, height: 1),
                   _buildProfileOption(CupertinoIcons.info_circle_fill, "About App"),
                 ],
@@ -548,7 +518,10 @@ class ProfileTab extends StatelessWidget {
               width: double.infinity,
               child: CupertinoButton(
                 color: Colors.redAccent.withOpacity(0.15),
-                onPressed: () => FirebaseAuth.instance.signOut(),
+                onPressed: () async {
+                  log("User logging out: ${user?.email}");
+                  await FirebaseAuth.instance.signOut();
+                },
                 child: const Text("Log Out", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
               ),
             ),
@@ -560,17 +533,10 @@ class ProfileTab extends StatelessWidget {
   }
 
   Widget _buildProfileOption(IconData icon, String title) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white70),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.grey, size: 20),
-    );
+    return ListTile(leading: Icon(icon, color: Colors.white70), title: Text(title, style: const TextStyle(color: Colors.white)), trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.grey, size: 20));
   }
 }
 
-// ==========================================
-// REUSABLE COMPONENTS
-// ==========================================
 class ExploreCard extends StatelessWidget {
   final IconData icon; final String title; final Color color;
   const ExploreCard({super.key, required this.icon, required this.title, required this.color});
@@ -582,11 +548,7 @@ class ExploreCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(20)),
       child: Column(children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
-          child: Icon(icon, color: color, size: 28),
-        ), 
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle), child: Icon(icon, color: color, size: 28)), 
         const SizedBox(height: 12),
         Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
       ]),
