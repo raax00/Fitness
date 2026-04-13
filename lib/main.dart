@@ -19,9 +19,10 @@ class CloudIDEApp extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
         ),
-        cardTheme: CardTheme(
+        // ✅ BUG FIXED HERE: Changed CardTheme to CardThemeData
+        cardTheme: CardThemeData(
           color: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Smooth rounded corners
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), 
         ),
       ),
       home: HomeScreen(),
@@ -56,7 +57,6 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.folder_open_rounded, 
               color: Colors.orangeAccent,
               onTap: () {
-                // Yaha file picker ka logic aayega
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("File Picker open hoga...")));
               },
             ),
@@ -112,7 +112,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // State for mock downloads
   double jdkProgress = 0.0;
   double sdkProgress = 0.0;
   double flutterProgress = 0.0;
