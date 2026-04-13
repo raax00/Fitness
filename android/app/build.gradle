@@ -1,0 +1,21 @@
+android {
+    // ... baki code ...
+
+    defaultConfig {
+        // ... baki code ...
+        
+        // C++ ke liye architectures define karein
+        externalNativeBuild {
+            cmake {
+                abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+            }
+        }
+    }
+
+    // Niche yeh externalNativeBuild ka path add karein
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+        }
+    }
+}
