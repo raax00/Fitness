@@ -1,10 +1,18 @@
 android {
-    // ... baki code ...
+    namespace "com.example.pro_ide"
+    compileSdkVersion flutter.compileSdkVersion
+    
+    // YEH LINE ZAROOR ADD KAREIN (GitHub Actions NDK download kar lega)
+    ndkVersion "25.1.8937393" 
 
     defaultConfig {
-        // ... baki code ...
+        applicationId "com.example.pro_ide"
+        minSdkVersion 21
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
         
-        // C++ ke liye architectures define karein
+        // C++ ke architectures
         externalNativeBuild {
             cmake {
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
@@ -12,7 +20,6 @@ android {
         }
     }
 
-    // Niche yeh externalNativeBuild ka path add karein
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
