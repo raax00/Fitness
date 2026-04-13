@@ -10,9 +10,15 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  # Firebase Dependencies (Naye Add Kiye Gaye)
+  
+  # Firebase Dependencies (Aapke Desi Fitness wale)
   firebase_core: ^2.24.2
   firebase_auth: ^4.15.3
+
+  # Pro IDE / Offline Builder Dependencies (Jo errors fix karenge)
+  path_provider: ^2.1.2
+  dio: ^5.4.0
+  ffi: ^2.1.2
 
 dev_dependencies:
   flutter_test:
