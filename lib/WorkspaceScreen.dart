@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-// Apni ffi_bridge file ko import karein
 import 'ffi_bridge.dart';
 
 // --- BACKEND ENGINES ---
@@ -101,7 +100,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.save), onPressed: () => fileManager.saveFile(selectedFile, codeController.text)),
           IconButton(icon: const Icon(Icons.play_arrow, color: Colors.green), onPressed: () => _handleTerminalCommand("flutter run")),
-          IconButton(icon: const Icon(Icons.terminal, color: isTerminalOpen ? Colors.blueAccent : Colors.grey), onPressed: () => setState(() => isTerminalOpen = !isTerminalOpen)),
+          // ✅ BUGS FIXED: Yaha se 'const' hata diya gaya hai
+          IconButton(icon: Icon(Icons.terminal, color: isTerminalOpen ? Colors.blueAccent : Colors.grey), onPressed: () => setState(() => isTerminalOpen = !isTerminalOpen)),
         ],
       ),
       drawer: isWideScreen ? null : Drawer(child: _buildFileManager()),
