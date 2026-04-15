@@ -5,18 +5,32 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase Error: $e");
-  }
+  
+  // ANTI-CRASH SYSTEM: Grey screen ki jagah proper error dikhayega
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            "App Error:\n${details.exceptionAsString()}",
+            style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
+
   runApp(const PremiumStoreApp());
 }
 
 // --- GLOBAL CART ---
 List<Map<String, dynamic>> globalCart = [];
+bool isDemoMode = false; // Agar Firebase fail ho jaye to demo mode on ho jayega
 
 class PremiumStoreApp extends StatelessWidget {
   const PremiumStoreApp({Key? key}) : super(key: key);
@@ -29,21 +43,99 @@ class PremiumStoreApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF09090B),
-        primaryColor: const Color(0xFFE5B80B), // Premium Gold
+        primaryColor: const Color(0xFFE5B80B),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF121214),
           elevation: 0,
           centerTitle: true,
         ),
       ),
-      // Automatically check login status
-      home: FirebaseAuth.instance.currentUser == null ? const SubscriptionScreen() : const HomeScreen(),
+      home: const AppInitScreen(), // App ab yahan se safely start hoga
     );
   }
 }
 
 // ==========================================
-// 1. SUBSCRIPTION SCREEN (Premium iOS Style)
+// 0. APP INITIALIZER (Fixes Blank Screen)
+// ==========================================
+class AppInitScreen extends StatefulWidget {
+  const AppInitScreen({Key? key}) : super(key: key);
+  @override
+  _AppInitScreenState createState() => _AppInitScreenState();
+}
+
+class _AppInitScreenState extends State<AppInitScreen> {
+  Future<bool> initFirebase() async {
+    try {
+      await Firebase.initializeApp();
+      return true; // Success
+    } catch (e) {
+      debugPrint("Firebase Setup Missing: $e");
+      return false; // Failed (No google-services.json)
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: initFirebase(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CupertinoActivityIndicator(radius: 20, color: Color(0xFFE5B80B))));
+        }
+
+        if (snapshot.hasData && snapshot.data == true) {
+          // Firebase Initialized Successfully!
+          isDemoMode = false;
+          return FirebaseAuth.instance.currentUser == null ? const SubscriptionScreen() : const HomeScreen();
+        } else {
+          // Firebase Failed (Missing config file) -> Safe Fallback
+          isDemoMode = true;
+          return const FirebaseErrorScreen();
+        }
+      },
+    );
+  }
+}
+
+class FirebaseErrorScreen extends StatelessWidget {
+  const FirebaseErrorScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 80),
+              const SizedBox(height: 20),
+              const Text("Firebase Not Connected", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 10),
+              const Text(
+                "App crash hone se bacha liya gaya hai! Aapne abhi google-services.json add nahi kiya hai.",
+                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B)),
+                onPressed: () {
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SubscriptionScreen()));
+                },
+                child: const Text("SEE APP UI (DEMO MODE)", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 1. SUBSCRIPTION SCREEN
 // ==========================================
 class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({Key? key}) : super(key: key);
@@ -53,14 +145,9 @@ class SubscriptionScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Gradient
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF09090B), Color(0xFF2A2104)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
+              gradient: LinearGradient(colors: [Color(0xFF09090B), Color(0xFF2A2104)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
             ),
           ),
           SafeArea(
@@ -71,41 +158,30 @@ class SubscriptionScreen extends StatelessWidget {
                 children: [
                   const Icon(CupertinoIcons.star_circle_fill, size: 100, color: Color(0xFFE5B80B)),
                   const SizedBox(height: 20),
-                  const Text("Unlock Premium Access", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.2)),
+                  const Text("Unlock Premium Access", textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
                   const SizedBox(height: 10),
-                  const Text("Get full access to all products, HD videos, and exclusive early discounts.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const Text("Get full access to all products and features.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 16)),
                   const SizedBox(height: 50),
-                  
-                  // Plan Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1D),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFF1A1A1D), borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: const Color(0xFFE5B80B).withOpacity(0.5), width: 2),
-                      boxShadow: [BoxShadow(color: const Color(0xFFE5B80B).withOpacity(0.2), blurRadius: 20, spreadRadius: 2)],
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Lifetime VIP", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                            SizedBox(height: 5),
-                            Text("One-time payment", style: TextStyle(color: Colors.grey)),
-                          ],
+                          children: [Text("Lifetime VIP", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), SizedBox(height: 5), Text("One-time payment", style: TextStyle(color: Colors.grey))],
                         ),
                         Text("₹33,299", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFE5B80B))),
                       ],
                     ),
                   ),
                   const Spacer(),
-                  
-                  // Action Buttons
                   SizedBox(
-                    width: double.infinity,
-                    height: 55,
+                    width: double.infinity, height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                       onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const AuthScreen())),
@@ -124,7 +200,7 @@ class SubscriptionScreen extends StatelessWidget {
 }
 
 // ==========================================
-// 2. AUTH SCREEN (Login / Register iOS Style)
+// 2. AUTH SCREEN
 // ==========================================
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
@@ -140,24 +216,24 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController passCtrl = TextEditingController();
 
   Future<void> submitAuth() async {
+    if (isDemoMode) {
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+      return;
+    }
+
     setState(() => isLoading = true);
     try {
       if (isLogin) {
         await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailCtrl.text.trim(), password: passCtrl.text.trim());
       } else {
         UserCredential cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: emailCtrl.text.trim(), password: passCtrl.text.trim());
-        // Save Name to Firestore Database
         await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
-          'name': nameCtrl.text.trim(),
-          'email': emailCtrl.text.trim(),
-          'createdAt': DateTime.now(),
+          'name': nameCtrl.text.trim(), 'email': emailCtrl.text.trim(), 'createdAt': DateTime.now(),
         });
       }
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
-      }
-    } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? "Authentication Error", style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+      if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
     setState(() => isLoading = false);
   }
@@ -172,26 +248,20 @@ class _AuthScreenState extends State<AuthScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(isLogin ? "Welcome Back," : "Join Us,", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(isLogin ? "Sign in to continue" : "Create an account to shop", style: const TextStyle(color: Colors.grey, fontSize: 16)),
             const SizedBox(height: 40),
-            if (!isLogin) ...[
-              CupertinoTextField(controller: nameCtrl, placeholder: "Full Name", padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF1A1A1D), borderRadius: BorderRadius.circular(12))),
-              const SizedBox(height: 16),
-            ],
-            CupertinoTextField(controller: emailCtrl, placeholder: "Email Address", keyboardType: TextInputType.emailAddress, padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF1A1A1D), borderRadius: BorderRadius.circular(12))),
+            if (!isLogin) ...[CupertinoTextField(controller: nameCtrl, placeholder: "Full Name", padding: const EdgeInsets.all(16)), const SizedBox(height: 16)],
+            CupertinoTextField(controller: emailCtrl, placeholder: "Email", keyboardType: TextInputType.emailAddress, padding: const EdgeInsets.all(16)),
             const SizedBox(height: 16),
-            CupertinoTextField(controller: passCtrl, placeholder: "Password", obscureText: true, padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF1A1A1D), borderRadius: BorderRadius.circular(12))),
+            CupertinoTextField(controller: passCtrl, placeholder: "Password", obscureText: true, padding: const EdgeInsets.all(16)),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity, height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 onPressed: isLoading ? null : submitAuth,
-                child: isLoading ? const CupertinoActivityIndicator(color: Colors.black) : Text(isLogin ? "LOGIN" : "REGISTER", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: isLoading ? const CupertinoActivityIndicator(color: Colors.black) : Text(isLogin ? "LOGIN" : "REGISTER", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
               ),
             ),
-            const SizedBox(height: 20),
             Center(
               child: TextButton(
                 onPressed: () => setState(() => isLogin = !isLogin),
@@ -206,15 +276,14 @@ class _AuthScreenState extends State<AuthScreen> {
 }
 
 // ==========================================
-// 3. HOME SCREEN & DRAWER (YouTube Thumbnail Style)
+// 3. HOME SCREEN & DRAWER
 // ==========================================
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   final List<Map<String, dynamic>> dummyProducts = const [
-    {"id": "p1", "name": "Sony WH-1000XM5 ANC Headphones", "price": 26990, "image": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=800&q=80", "desc": "Industry leading noise cancellation headphones."},
-    {"id": "p2", "name": "Apple Watch Ultra 2", "price": 89900, "image": "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=800&q=80", "desc": "The most rugged and capable Apple Watch."},
-    {"id": "p3", "name": "Razer BlackWidow V4", "price": 18500, "image": "https://images.unsplash.com/photo-1595225476474-87563907a212?auto=format&fit=crop&w=800&q=80", "desc": "Premium mechanical gaming keyboard."},
+    {"id": "p1", "name": "Sony WH-1000XM5 ANC Headphones", "price": 26990, "image": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=800&q=80", "desc": "Noise cancellation headphones."},
+    {"id": "p2", "name": "Apple Watch Ultra 2", "price": 89900, "image": "https://images.unsplash.com/photo-1434493789847-2f02dc6ca35d?auto=format&fit=crop&w=800&q=80", "desc": "Rugged Apple Watch."},
   ];
 
   @override
@@ -222,31 +291,28 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Premium Store", style: TextStyle(color: Color(0xFFE5B80B), fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(icon: const Icon(CupertinoIcons.cart), onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const CartScreen()))),
-        ],
+        actions: [IconButton(icon: const Icon(CupertinoIcons.cart), onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => const CartScreen())))],
       ),
       drawer: Drawer(
         backgroundColor: const Color(0xFF121214),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF09090B)),
-              accountName: const Text("Welcome, User", style: TextStyle(color: Color(0xFFE5B80B), fontWeight: FontWeight.bold, fontSize: 18)),
-              accountEmail: Text(FirebaseAuth.instance.currentUser?.email ?? "Not logged in", style: const TextStyle(color: Colors.grey)),
-              currentAccountPicture: const CircleAvatar(backgroundColor: Color(0xFFE5B80B), child: Icon(Icons.person, color: Colors.black, size: 40)),
+            const UserAccountsDrawerHeader(
+              decoration: BoxDecoration(color: Color(0xFF09090B)),
+              accountName: Text("Premium User", style: TextStyle(color: Color(0xFFE5B80B), fontWeight: FontWeight.bold, fontSize: 18)),
+              accountEmail: Text("user@demo.com", style: TextStyle(color: Colors.grey)),
+              currentAccountPicture: CircleAvatar(backgroundColor: Color(0xFFE5B80B), child: Icon(Icons.person, color: Colors.black, size: 40)),
             ),
             ListTile(leading: const Icon(CupertinoIcons.home), title: const Text('Home'), onTap: () => Navigator.pop(context)),
             ListTile(leading: const Icon(CupertinoIcons.cart), title: const Text('My Cart'), onTap: () { Navigator.pop(context); Navigator.push(context, CupertinoPageRoute(builder: (_) => const CartScreen())); }),
             ListTile(leading: const Icon(CupertinoIcons.cube_box), title: const Text('My Orders'), onTap: () { Navigator.pop(context); Navigator.push(context, CupertinoPageRoute(builder: (_) => const OrdersScreen())); }),
-            ListTile(leading: const Icon(CupertinoIcons.location), title: const Text('Address / Settings'), onTap: () {}),
             const Divider(color: Colors.white24),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text('Logout', style: TextStyle(color: Colors.redAccent)),
               onTap: () async {
-                await FirebaseAuth.instance.signOut();
+                if (!isDemoMode) await FirebaseAuth.instance.signOut();
                 Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthScreen()), (route) => false);
               },
             ),
@@ -254,8 +320,7 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: dummyProducts.length,
+        padding: const EdgeInsets.all(16), itemCount: dummyProducts.length,
         itemBuilder: (context, index) {
           final prod = dummyProducts[index];
           return GestureDetector(
@@ -266,40 +331,17 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // YouTube Style 16:9 Big Thumbnail
-                  Hero(
-                    tag: prod['id'],
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Image.network(prod['image'], fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade900, child: const Center(child: Icon(Icons.image, size: 50)))),
-                      ),
-                    ),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: AspectRatio(aspectRatio: 16 / 9, child: Image.network(prod['image'], fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade900))),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(prod['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white), maxLines: 2, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 6),
-                              Text("₹${prod['price']}", style: const TextStyle(fontSize: 16, color: Color(0xFFE5B80B), fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.cart_badge_plus, color: Colors.white),
-                          onPressed: () {
-                            globalCart.add(prod);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${prod['name']} added to cart!"), duration: const Duration(seconds: 1)));
-                          },
-                        )
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(prod['name'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), Text("₹${prod['price']}", style: const TextStyle(color: Color(0xFFE5B80B)))])),
+                        IconButton(icon: const Icon(CupertinoIcons.cart_badge_plus), onPressed: () { globalCart.add(prod); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added to cart!"))); })
                       ],
                     ),
                   )
@@ -323,51 +365,25 @@ class ProductDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Hero(
-              tag: product['id'],
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Image.network(product['image'], fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade900)),
-              ),
-            ),
+            AspectRatio(aspectRatio: 1, child: Image.network(product['image'], fit: BoxFit.cover)),
             Padding(
               padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(product['name'], style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text("₹${product['price']}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFE5B80B))),
-                  const SizedBox(height: 20),
-                  const Text("Description", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
-                  const SizedBox(height: 8),
-                  Text(product['desc'], style: const TextStyle(fontSize: 16, color: Colors.white70, height: 1.5)),
-                ],
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(product['name'], style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)), Text("₹${product['price']}", style: const TextStyle(fontSize: 24, color: Color(0xFFE5B80B))), const SizedBox(height: 20), Text(product['desc'])]),
             ),
           ],
         ),
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(color: Color(0xFF121214), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        child: SizedBox(
-          width: double.infinity, height: 55,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            onPressed: () {
-              globalCart.add(product);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Added to cart!")));
-              Navigator.pop(context);
-            },
-            child: const Text("ADD TO CART", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), padding: const EdgeInsets.symmetric(vertical: 16)),
+          onPressed: () { globalCart.add(product); Navigator.pop(context); },
+          child: const Text("ADD TO CART", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         ),
       ),
     );
@@ -390,147 +406,72 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("My Cart")),
-      body: globalCart.isEmpty
-          ? const Center(child: Text("Cart is Empty", style: TextStyle(color: Colors.grey, fontSize: 18)))
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: globalCart.length,
-                    itemBuilder: (context, index) {
-                      final item = globalCart[index];
-                      return ListTile(
-                        leading: ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(item['image'], width: 50, height: 50, fit: BoxFit.cover)),
-                        title: Text(item['name'], maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text("₹${item['price']}", style: const TextStyle(color: Color(0xFFE5B80B))),
-                        trailing: IconButton(icon: const Icon(CupertinoIcons.delete, color: Colors.redAccent), onPressed: () => setState(() => globalCart.removeAt(index))),
-                      );
-                    },
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: const BoxDecoration(color: Color(0xFF1A1A1D), borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                  child: Column(
-                    children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Total Amount", style: TextStyle(fontSize: 18)), Text("₹$totalAmount", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFE5B80B)))]),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity, height: 55,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                          onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => PaymentScreen(amount: totalAmount))),
-                          child: const Text("PROCEED TO PAY", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
-                      )
-                    ],
-                  ),
-                )
-              ],
-            ),
+      body: globalCart.isEmpty ? const Center(child: Text("Cart is Empty")) : Column(
+        children: [
+          Expanded(child: ListView.builder(itemCount: globalCart.length, itemBuilder: (context, index) {
+            return ListTile(title: Text(globalCart[index]['name']), subtitle: Text("₹${globalCart[index]['price']}"), trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => setState(() => globalCart.removeAt(index))));
+          })),
+          Container(
+            padding: const EdgeInsets.all(24), color: const Color(0xFF1A1A1D),
+            child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text("Total"), Text("₹$totalAmount", style: const TextStyle(color: Color(0xFFE5B80B), fontSize: 20, fontWeight: FontWeight.bold))]),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE5B80B), minimumSize: const Size(double.infinity, 50)),
+                onPressed: () => Navigator.push(context, CupertinoPageRoute(builder: (_) => PaymentScreen(amount: totalAmount))),
+                child: const Text("PROCEED TO PAY", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              )
+            ]),
+          )
+        ],
+      ),
     );
   }
 }
 
 // ==========================================
-// 6. UPI PAYMENT LIVE TRACKING & FIRESTORE UPLOAD
+// 6. PAYMENT SCREEN (SAFE URI HANDLING)
 // ==========================================
-class PaymentScreen extends StatefulWidget {
+class PaymentScreen extends StatelessWidget {
   final double amount;
   const PaymentScreen({Key? key, required this.amount}) : super(key: key);
-  @override
-  _PaymentScreenState createState() => _PaymentScreenState();
-}
 
-class _PaymentScreenState extends State<PaymentScreen> {
-  bool isProcessing = false;
-
-  Future<void> launchUPI() async {
-    // UPI Intent URL
-    String upiUrl = "upi://pay?pa=8406962570@ybl&pn=PremiumStore&am=${widget.amount}&cu=INR";
-    Uri uri = Uri.parse(upiUrl);
-
+  Future<void> launchUPI(BuildContext context) async {
+    Uri uri = Uri.parse("upi://pay?pa=8406962570@ybl&pn=PremiumStore&am=$amount&cu=INR");
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No UPI App found on this device.")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("UPI App not found.")));
       }
     } catch (e) {
-      debugPrint(e.toString());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
-  }
-
-  Future<void> verifyPaymentAndSaveOrder() async {
-    setState(() => isProcessing = true);
-    
-    // Simulate server side verification delay
-    await Future.delayed(const Duration(seconds: 3));
-
-    try {
-      String uid = FirebaseAuth.instance.currentUser!.uid;
-      
-      // Save order to Firestore Admin Panel DB
-      await FirebaseFirestore.instance.collection('orders').add({
-        'userId': uid,
-        'items': globalCart,
-        'totalAmount': widget.amount,
-        'paymentStatus': 'Paid', // App detects User returned after intent
-        'orderStatus': 'Pending Admin Approval', // Admin will see this
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      globalCart.clear(); // Empty cart on success
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Successful! Order sent to Admin.", style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
-        Navigator.pushAndRemoveUntil(context, CupertinoPageRoute(builder: (_) => const HomeScreen()), (route) => false);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error saving order.")));
-    }
-    setState(() => isProcessing = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Checkout via UPI")),
+      appBar: AppBar(title: const Text("Checkout")),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.qr_code_scanner, size: 80, color: Color(0xFFE5B80B)),
-              const SizedBox(height: 20),
-              Text("Total to Pay: ₹${widget.amount}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text("Total: ₹$amount", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 30),
-              
-              // Step 1: Open UPI App
-              SizedBox(
-                width: double.infinity, height: 50,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE5B80B))),
-                  icon: const Icon(Icons.account_balance_wallet, color: Color(0xFFE5B80B)),
-                  label: const Text("1. OPEN UPI APP TO PAY", style: TextStyle(color: Color(0xFFE5B80B))),
-                  onPressed: launchUPI,
-                ),
-              ),
+              OutlinedButton(onPressed: () => launchUPI(context), child: const Text("1. OPEN UPI APP")),
               const SizedBox(height: 20),
-
-              // Step 2: Verify & Submit to Admin
-              isProcessing 
-                ? const CupertinoActivityIndicator(radius: 20, color: Color(0xFFE5B80B))
-                : SizedBox(
-                    width: double.infinity, height: 55,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                      icon: const Icon(Icons.verified, color: Colors.white),
-                      label: const Text("2. I HAVE PAID (VERIFY & ORDER)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      onPressed: verifyPaymentAndSaveOrder,
-                    ),
-                  ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () {
+                  globalCart.clear();
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Order Success!")));
+                  Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+                },
+                child: const Text("2. I HAVE PAID (FINISH)", style: TextStyle(color: Colors.white)),
+              ),
             ],
           ),
         ),
@@ -540,61 +481,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
 }
 
 // ==========================================
-// 7. MY ORDERS SCREEN (Fetches from Firestore)
+// 7. ORDERS SCREEN
 // ==========================================
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({Key? key}) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text("My Orders")),
-      body: uid == null
-          ? const Center(child: Text("Please Login First"))
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('orders').where('userId', isEqualTo: uid).orderBy('timestamp', descending: true).snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CupertinoActivityIndicator());
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text("No Orders Yet", style: TextStyle(color: Colors.grey)));
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    var order = snapshot.data!.docs[index];
-                    return Card(
-                      color: const Color(0xFF1A1A1D),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text("Order ID: ${order.id.substring(0, 8)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                                  child: Text(order['orderStatus'], style: const TextStyle(color: Colors.blue, fontSize: 12)),
-                                )
-                              ],
-                            ),
-                            const Divider(color: Colors.white24),
-                            Text("Total Paid: ₹${order['totalAmount']}", style: const TextStyle(color: Color(0xFFE5B80B), fontSize: 16, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            Text("Items: ${(order['items'] as List).length}", style: const TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-    );
+    return Scaffold(appBar: AppBar(title: const Text("My Orders")), body: const Center(child: Text("Demo Mode: No Orders Found.")));
   }
 }
