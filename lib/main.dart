@@ -4,7 +4,7 @@ void main() {
   runApp(const PremiumStoreApp());
 }
 
-// --- GLOBAL CART STATE (For simple demo purposes) ---
+// --- GLOBAL CART STATE (For demo purposes) ---
 List<Map<String, dynamic>> globalCart = [];
 
 class PremiumStoreApp extends StatelessWidget {
@@ -30,7 +30,7 @@ class PremiumStoreApp extends StatelessWidget {
 }
 
 // ==========================================
-// 1. SUBSCRIPTION SCREEN (First Screen)
+// 1. SUBSCRIPTION SCREEN
 // ==========================================
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({Key? key}) : super(key: key);
@@ -40,7 +40,7 @@ class SubscriptionScreen extends StatefulWidget {
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  int selectedPlan = 0; // 0: Trial, 1: 1 Month, etc.
+  int selectedPlan = 0;
 
   final List<Map<String, dynamic>> plans = [
     {"title": "2-day trial", "subtitle": "Limited access", "price": "₹85 / 2 days", "tag": null},
@@ -77,7 +77,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 30),
-              // Plan List
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1A1A),
@@ -112,7 +111,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               const SizedBox(height: 30),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37), // Gold
+                  backgroundColor: const Color(0xFFD4AF37),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -130,11 +129,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 }
 
 // ==========================================
-// 2. PAYMENT SCREEN (UPI)
+// 2. PAYMENT SCREEN (UPI) - BUG FIXED HERE ✅
 // ==========================================
 class PaymentScreen extends StatelessWidget {
   final String amount;
-  const PaymentScreen({Key? key, required this amount}) : super(key: key);
+  
+  // FIXED: 'required this amount' ko 'required this.amount' me badal diya gaya hai.
+  const PaymentScreen({Key? key, required this.amount}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +164,6 @@ class PaymentScreen extends StatelessWidget {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 16)),
                   onPressed: () {
-                    // Payment Success Logic -> Go to Home
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Successful!")));
                     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
                   },
@@ -189,7 +189,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Dummy Products (Admin panel me yahan Firebase se data aayega)
   final List<Map<String, dynamic>> products = [
     {"id": "1", "name": "Premium Wireless Headphones", "price": 2500, "image": Icons.headphones},
     {"id": "2", "name": "Smart Watch Series 8", "price": 4000, "image": Icons.watch},
