@@ -9,13 +9,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   
-  # Firebase Dependencies (Aapke Desi Fitness wale)
+  # iOS Style Icons
+  cupertino_icons: ^1.0.8
+
+  # Firebase Dependencies (Authentication & Core)
   firebase_core: ^2.24.2
   firebase_auth: ^4.15.3
+  # Agar fitness app me user ka data (jaise diet plan ya workout) save karna hai, 
+  # toh firestore add karna padega:
+  cloud_firestore: ^4.13.6 
 
-  # Pro IDE / Offline Builder Dependencies (Jo errors fix karenge)
+  # Extra Tools (Agar app me PDF ya images download karwani hain tabhi inko rakhein)
   path_provider: ^2.1.2
   dio: ^5.4.0
   ffi: ^2.1.2
