@@ -13,17 +13,16 @@ dependencies:
   # iOS Style Icons
   cupertino_icons: ^1.0.8
 
-  # Firebase Dependencies (Authentication & Core)
+  # Firebase Dependencies (Authentication, Database)
   firebase_core: ^2.24.2
   firebase_auth: ^4.15.3
-  # Agar fitness app me user ka data (jaise diet plan ya workout) save karna hai, 
-  # toh firestore add karna padega:
   cloud_firestore: ^4.13.6 
 
-  # Extra Tools (Agar app me PDF ya images download karwani hain tabhi inko rakhein)
-  path_provider: ^2.1.2
-  dio: ^5.4.0
-  ffi: ^2.1.2
+  # UPI Payment App Open karne ke liye (Ye package miss tha, ab fix ho gaya ✅)
+  url_launcher: ^6.2.6
+
+  # Local Storage ke liye (Aapki 'preference' wali demand ✅)
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
