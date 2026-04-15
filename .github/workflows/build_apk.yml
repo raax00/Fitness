@@ -25,19 +25,29 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          # Cache enabled karne se build fast hoga
           cache: true
+
+      # ==========================================
+      # 🔥 THE MAGIC FIX FOR V1 EMBEDDING 🔥
+      # Bina Android folder delete kiye, purane code ko Auto-Update karega
+      # ==========================================
+      - name: Auto-Fix Android V1 Embedding
+        run: |
+          # 1. AndroidManifest me v2 metadata add karega (agar pehle se nahi hai)
+          if ! grep -q 'android:name="flutterEmbedding"' android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<application/a \        <meta-data android:name="flutterEmbedding" android:value="2" />' android/app/src/main/AndroidManifest.xml
+          fi
+          
+          # 2. Java aur Kotlin files me purana V1 import hata kar Naya V2 lagayega
+          if [ -d "android/app/src/main/java" ]; then
+            find android/app/src/main/java -type f -name "*.java" -exec sed -i 's/io.flutter.app.FlutterActivity/io.flutter.embedding.android.FlutterActivity/g' {} +
+          fi
+          if [ -d "android/app/src/main/kotlin" ]; then
+            find android/app/src/main/kotlin -type f -name "*.kt" -exec sed -i 's/io.flutter.app.FlutterActivity/io.flutter.embedding.android.FlutterActivity/g' {} +
+          fi
 
       - name: Install Dependencies
         run: flutter pub get
-
-      # (Optional) Agar aapne google-services.json GitHub me commit NAHI kiya hai aur 
-      # Secrets me daala hai, toh sirf is step ko uncomment karna. 
-      # Agar commit kiya hua hai repository me, toh iski zaroorat NAHI hai.
-      # - name: Setup Firebase from Secret
-      #   env:
-      #     GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-      #   run: echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Build APK (Release Mode)
         run: flutter build apk --release
